@@ -14,10 +14,12 @@ type Vote = {
 
 interface VoteListProps {
   initialVotes: Vote[];
+  hasVotedInit: boolean;
 }
 
-export default function VoteList({ initialVotes }: VoteListProps) {
+export default function VoteList({ initialVotes, hasVotedInit }: VoteListProps) {
   const [isVoting, setIsVoting] = useState<string | null>(null);
+  const [hasVoted, setHasVoted] = useState(hasVotedInit);
   
   const [optimisticVotes, addOptimisticVote] = useOptimistic(
     initialVotes,
@@ -30,12 +32,14 @@ export default function VoteList({ initialVotes }: VoteListProps) {
   const totalVotes = optimisticVotes.reduce((sum, v) => sum + v.count, 0);
 
   const handleVote = async (option: string) => {
+    if (hasVoted) return;
     setIsVoting(option);
     addOptimisticVote(option);
     try {
       await vote(option);
+      setHasVoted(true);
     } catch (error) {
-      alert('投票に失敗しました。');
+      alert(error instanceof Error ? error.message : '投票に失敗しました。');
     } finally {
       setIsVoting(null);
     }
@@ -46,6 +50,7 @@ export default function VoteList({ initialVotes }: VoteListProps) {
       <div className="grid gap-6">
         {optimisticVotes.map((v) => {
           const percentage = totalVotes > 0 ? (v.count / totalVotes) * 100 : 0;
+          const isSelected = isVoting === v.option || (hasVoted && initialVotes.find(iv => iv.option === v.option)?.count !== v.count);
           
           return (
             <motion.div
@@ -56,13 +61,15 @@ export default function VoteList({ initialVotes }: VoteListProps) {
               className="relative"
             >
               <button
-                disabled={!!isVoting}
+                disabled={!!isVoting || hasVoted}
                 onClick={() => handleVote(v.option)}
                 className={cn(
-                  "group relative w-full overflow-hidden rounded-2xl border bg-white/5 p-6 text-left transition-all hover:scale-[1.01] active:scale-[0.98]",
-                  "border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 dark:hover:border-indigo-400/50",
-                  "backdrop-blur-xl shadow-sm hover:shadow-indigo-500/10",
-                  isVoting === v.option && "ring-2 ring-indigo-500 border-transparent"
+                  "group relative w-full overflow-hidden rounded-2xl border bg-white/5 p-6 text-left transition-all",
+                  !hasVoted && "hover:scale-[1.01] active:scale-[0.98] hover:border-indigo-500/50 dark:hover:border-indigo-400/50 hover:shadow-indigo-500/10",
+                  "border-zinc-200 dark:border-zinc-800",
+                  "backdrop-blur-xl shadow-sm",
+                  isVoting === v.option && "ring-2 ring-indigo-500 border-transparent",
+                  hasVoted && "cursor-default opacity-80"
                 )}
               >
                 {/* 背景のプログレスバー */}
@@ -75,8 +82,9 @@ export default function VoteList({ initialVotes }: VoteListProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 transition-colors group-hover:bg-indigo-100 dark:bg-zinc-900 dark:group-hover:bg-indigo-900/30",
-                      isVoting === v.option && "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
+                      "flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 transition-colors dark:bg-zinc-900",
+                      !hasVoted && "group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30",
+                      (isVoting === v.option || hasVoted) && "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
                     )}>
                       {isVoting === v.option ? (
                         <motion.div
@@ -86,7 +94,10 @@ export default function VoteList({ initialVotes }: VoteListProps) {
                           <MousePointerClick className="h-5 w-5" />
                         </motion.div>
                       ) : (
-                        <CheckCircle2 className="h-5 w-5 text-zinc-400 group-hover:text-indigo-500 dark:text-zinc-600 dark:group-hover:text-indigo-400" />
+                        <CheckCircle2 className={cn(
+                          "h-5 w-5 transition-colors",
+                          hasVoted ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-400 group-hover:text-indigo-500 dark:text-zinc-600 dark:group-hover:text-indigo-400"
+                        )} />
                       )}
                     </div>
                     <div>
@@ -98,7 +109,9 @@ export default function VoteList({ initialVotes }: VoteListProps) {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-indigo-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                    {!hasVoted && (
+                      <TrendingUp className="h-4 w-4 text-indigo-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
                   </div>
                 </div>
               </button>
@@ -107,7 +120,20 @@ export default function VoteList({ initialVotes }: VoteListProps) {
         })}
       </div>
 
-      <div className="mt-12 flex items-center justify-center">
+      <AnimatePresence>
+        {hasVoted && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm font-medium">投票ありがとうございました！</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mt-8 flex items-center justify-center">
         <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           現在の総投票数: <span className="font-bold text-zinc-900 dark:text-zinc-100">{totalVotes}</span>

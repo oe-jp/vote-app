@@ -1,8 +1,12 @@
 import { getVotes, createVotesTable } from '@/lib/db';
 import VoteList from '@/components/VoteList';
 import { MousePointer2, Database, LayoutDashboard } from 'lucide-react';
+import { cookies } from 'next/headers';
 
 export default async function Home() {
+  const cookieStore = await cookies();
+  const hasVoted = !!cookieStore.get('has-voted');
+  
   let initialVotes: any[] = [];
   let isDbReady = false;
   let connectionError = false;
@@ -19,8 +23,8 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 font-sans selection:bg-indigo-500/30">
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-from),_transparent_70%)] from-indigo-500/10 dark:from-indigo-400/5" />
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-from),_transparent_70%)] from-fuchsia-500/10 dark:from-fuchsia-400/5" />
+      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-from),_transparent_70%)] from-indigo-500/10 dark:from-indigo-400/5 shadow-2xl" />
+      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-from),_transparent_70%)] from-fuchsia-500/10 dark:from-fuchsia-400/5 shadow-2xl" />
 
       <main className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-6 py-24 sm:py-32">
         <div className="mb-12 flex h-16 w-16 items-center justify-center rounded-3xl bg-white p-4 shadow-xl ring-1 ring-zinc-200 transition-all hover:rotate-12 dark:bg-zinc-900 dark:ring-zinc-800">
@@ -48,7 +52,7 @@ export default async function Home() {
               </div>
             </div>
           ) : (
-            <VoteList initialVotes={initialVotes} />
+            <VoteList initialVotes={initialVotes} hasVotedInit={hasVoted} />
           )}
         </div>
 
